@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>스톱모션 애니메이션 만들기</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef2f5;--panel:#fff;--ink:#22303c;--sub:#667785;--line:#d6dee5;--acc:#1f7a8c;--acc2:#e8f3f5;--warn:#c4513a;--stage:#1d2730;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141b21;--panel:#1d262d;--ink:#e6edf2;--sub:#93a3b0;--line:#33414c;--acc:#4fb3c5;--acc2:#1f3a41;--warn:#e27c66;--stage:#0c1115}}
+:root[data-theme="dark"]{--bg:#141b21;--panel:#1d262d;--ink:#e6edf2;--sub:#93a3b0;--line:#33414c;--acc:#4fb3c5;--acc2:#1f3a41;--warn:#e27c66;--stage:#0c1115}
+*{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,-apple-system,"Malgun Gothic",sans-serif;line-height:1.55}
+.wrap{max-width:980px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.5rem;margin:0 0 4px}
+.lead{margin:0 0 18px;color:var(--sub);font-size:.95rem}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.stage{position:relative;background:var(--stage);border-radius:10px;overflow:hidden;aspect-ratio:16/9}
+canvas{width:100%;height:100%;display:block}
+.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#cfdbe3;text-align:center;padding:16px;border:2px dashed #4a5b68;border-radius:10px;margin:10px;cursor:pointer}
+.empty.over{border-color:#4fb3c5;background:rgba(79,179,197,.12)}
+.empty b{font-size:1.1rem}
+.hidden{display:none!important}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+button,.btn{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:500}
+button:hover,.btn:hover{background:var(--acc2)}
+button:focus-visible,.btn:focus-visible,.thumb:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.primary{background:var(--acc);color:#fff;border-color:var(--acc)}
+.primary:hover{background:var(--acc);filter:brightness(1.1)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.count{margin-left:auto;color:var(--sub);font-size:.9rem}
+.speed{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:6px}
+.speed button{padding:8px 4px;font-size:.88rem;line-height:1.3}
+.speed button small{display:block;color:var(--sub);font-weight:400}
+.speed button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.speed button.on small{color:#e6f4f7}
+.lbl{font-weight:700;font-size:.95rem;margin:16px 0 0}
+.strip{display:flex;gap:10px;overflow-x:auto;padding:10px 2px 6px;min-height:130px}
+.thumb{position:relative;flex:0 0 112px;border:2px solid var(--line);border-radius:8px;background:var(--panel);padding:4px;cursor:grab;user-select:none}
+.thumb img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:4px;display:block;pointer-events:none}
+.thumb.cur{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc2)}
+.thumb.drag{opacity:.35}
+.thumb.target{border-color:var(--warn);border-style:dashed}
+.thumb .no{position:absolute;top:6px;left:6px;background:var(--acc);color:#fff;font-size:.75rem;border-radius:10px;padding:0 7px}
+.tools{display:flex;justify-content:space-between;margin-top:4px}
+.tools button{padding:2px 8px;font-size:.85rem}
+.tools .del:hover{background:var(--warn);color:#fff;border-color:var(--warn)}
+.hint{color:var(--sub);font-size:.85rem;margin:2px 0 0}
+.prog{height:8px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:12px}
+.prog i{display:block;height:100%;width:0;background:var(--acc)}
+#msg{font-size:.9rem;color:var(--sub);margin-top:6px;min-height:1.4em}
+nav{display:flex;gap:8px;margin-bottom:14px}
+nav button{flex:1;padding:10px;font-weight:700}
+.bar button.on,nav button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.sw{width:38px;height:38px;border-radius:50%;padding:0;border:2px solid var(--line)}
+.sw.on{outline:3px solid var(--acc);outline-offset:2px}
+.em{font-size:1.5rem;padding:4px 8px;line-height:1.2}
+input[type=range]{width:170px;accent-color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav aria-label="페이지 이동"><button id="nA" class="on">🎞️ 스톱모션 만들기</button><button id="nB">🎨 사진 만들기</button></nav>
+  <div id="pgA">
+  <h1>스톱모션 애니메이션 만들기</h1>
+  <p class="lead">사진을 올리고 순서를 바꾼 뒤, 재생 속도를 골라 영상으로 저장해 보세요.</p>
+
+  <div class="card">
+    <div class="stage" id="stage">
+      <canvas id="cv" width="1280" height="720"></canvas>
+      <div class="empty" id="empty" tabindex="0" role="button" aria-label="사진 올리기">
+        <b>여기에 사진을 끌어다 놓거나 눌러서 고르세요</b>
+        <span>사진을 2장 이상 올리면 애니메이션이 만들어져요<br>큰 사진은 자동으로 줄여서 담아요</span>
+      </div>
+    </div>
+
+    <div class="bar">
+      <button id="play" class="primary" disabled>▶ 재생</button>
+      <label class="btn" for="file">+ 사진 추가</label>
+      <input id="file" type="file" accept="image/*" multiple class="hidden">
+      <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="loop"> 반복 재생</label>
+      <button id="clear" disabled>모두 지우기</button>
+      <span class="count" id="count">사진 0장</span>
+    </div>
+
+    <p class="lbl">재생 속도</p>
+    <div class="speed" id="speed" role="group" aria-label="재생 속도"></div>
+
+    <p class="lbl">사진 순서 <span class="hint">· 사진을 끌어서 옮기거나 ◀ ▶ 버튼을 누르세요</span></p>
+    <div class="strip" id="strip"></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="bar" style="margin-top:0">
+      <button id="save" class="primary" disabled>⬇ 영상 파일로 저장</button>
+      <span class="hint" id="fmt"></span>
+    </div>
+    <div class="prog hidden" id="prog"><i id="pbar"></i></div>
+    <div id="msg" aria-live="polite"></div>
+  </div>
+  </div>
+
+  <div id="pgB" class="hidden">
+    <h1>사진 만들기</h1>
+    <p class="lead">배경을 고르고 등장인물을 끌어서 움직인 뒤, 사진으로 저장하거나 스톱모션으로 바로 보내세요.</p>
+    <div class="card">
+      <div class="stage"><canvas id="pc" width="1280" height="720" style="touch-action:none;cursor:grab"></canvas></div>
+      <p class="lbl">1. 배경 고르기</p>
+      <div class="bar"><span id="bgs" style="display:contents"></span>
+        <label class="btn" for="bgfile">+ 내 사진으로 배경</label><input id="bgfile" type="file" accept="image/*" class="hidden"></div>
+      <p class="lbl">2. 등장인물 넣기 <span class="hint">· 눌러서 추가하고, 화면에서 끌어서 움직여요</span></p>
+      <div class="bar"><span id="chs" style="display:contents"></span>
+        <label class="btn" for="chfile">+ 내 사진 인물</label><input id="chfile" type="file" accept="image/*" class="hidden"></div>
+      <p class="lbl">3. 선택한 인물 꾸미기</p>
+      <div class="bar">
+        <label>크기 <input type="range" id="psize" min="60" max="500" value="160" disabled></label>
+        <button id="pflip" disabled>↔ 좌우반전</button><button id="pdel" disabled>삭제</button><button id="pclr">모두 비우기</button>
+        <button id="pcut" disabled>✂ 배경 지우기</button><button id="pundo" disabled>↺ 원래대로</button>
+        <label>민감도 <input type="range" id="ptol" min="5" max="100" value="30" disabled></label>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div class="bar" style="margin-top:0">
+        <button id="padd" class="primary">🎞️ 스톱모션에 추가</button>
+        <button id="psave">⬇ 사진(PNG)으로 저장</button>
+        <button id="pgo">스톱모션 페이지로 가기 →</button>
+      </div>
+      <p class="hint" style="margin-top:8px">인물을 조금 움직이고 '스톱모션에 추가'를 반복하면 장면이 이어져요. 만든 인물은 그대로 남아 있어요.</p>
+      <div id="pmsg" style="font-size:.9rem;color:var(--sub);margin-top:6px;min-height:1.4em" aria-live="polite"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const SPEEDS=[{n:'아주 느리게',ms:1000},{n:'느리게',ms:500},{n:'보통',ms:250},{n:'빠르게',ms:125},{n:'아주 빠르게',ms:70}];
+const cv=$('#cv'),ctx=cv.getContext('2d');
+let frames=[],idx=0,playing=false,timer=null,busy=false,dragId=null,uid=0;
+let speed=2,loop=true;
+try{const s=JSON.parse(localStorage.getItem('stopmotion-settings')||'{}');
+ if(Number.isInteger(s.speed)&&s.speed>=0&&s.speed<5)speed=s.speed; if(typeof s.loop==='boolean')loop=s.loop;}catch(e){}
+function saveSettings(){try{localStorage.setItem('stopmotion-settings',JSON.stringify({speed,loop}))}catch(e){}}
+
+function drawBlank(){ctx.fillStyle='#1d2730';ctx.fillRect(0,0,1280,720)}
+function draw(i){
+  const f=frames[i]; if(!f){drawBlank();return}
+  ctx.fillStyle='#000';ctx.fillRect(0,0,1280,720);
+  const im=f.img,r=Math.min(1280/im.naturalWidth,720/im.naturalHeight),w=im.naturalWidth*r,h=im.naturalHeight*r;
+  ctx.drawImage(im,(1280-w)/2,(720-h)/2,w,h);
+}
+
+function renderSpeed(){
+  const box=$('#speed');box.innerHTML='';
+  SPEEDS.forEach((s,i)=>{
+    const b=document.createElement('button');
+    b.className=i===speed?'on':'';b.setAttribute('aria-pressed',i===speed);
+    b.innerHTML=`${i+1}단계<small>${s.n}</small><small>초당 ${(1000/s.ms).toFixed(1).replace('.0','')}장</small>`;
+    b.onclick=()=>{speed=i;saveSettings();renderSpeed()};
+    box.appendChild(b);
+  });
+}
+
+function renderStrip(){
+  const st=$('#strip');st.innerHTML='';
+  frames.forEach((f,i)=>{
+    const d=document.createElement('div');
+    d.className='thumb'+(i===idx?' cur':'');d.draggable=!busy;d.tabIndex=0;d.dataset.id=f.id;
+    d.innerHTML=`<span class="no">${i+1}</span><img src="${f.url}" alt="${i+1}번째 사진">
+      <div class="tools"><button class="l" title="앞으로" ${i===0?'disabled':''}>◀</button><button class="del" title="삭제">✕</button><button class="r" title="뒤로" ${i===frames.length-1?'disabled':''}>▶</button></div>`;
+    d.onclick=e=>{if(e.target.closest('button'))return;stop();idx=i;draw(i);mark()};
+    d.querySelector('.l').onclick=()=>move(i,i-1);
+    d.querySelector('.r').onclick=()=>move(i,i+1);
+    d.querySelector('.del').onclick=()=>remove(i);
+    d.ondragstart=e=>{dragId=f.id;d.classList.add('drag');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',f.id)};
+    d.ondragend=()=>{dragId=null;renderStrip()};
+    d.ondragover=e=>{e.preventDefault();if(dragId&&dragId!==f.id)d.classList.add('target')};
+    d.ondragleave=()=>d.classList.remove('target');
+    d.ondrop=e=>{e.preventDefault();const from=frames.findIndex(x=>x.id===dragId);if(from>-1)move(from,i)};
+    st.appendChild(d);
+  });
+  const n=frames.length;
+  $('#count').textContent=`사진 ${n}장`;
+  $('#empty').classList.toggle('hidden',n>0);
+  $('#play').disabled=n<2||busy;$('#save').disabled=n<2||busy;$('#clear').disabled=n===0||busy;
+}
+function mark(){document.querySelectorAll('.thumb').forEach((t,i)=>t.classList.toggle('cur',i===idx));
+  const c=document.querySelector('.thumb.cur');if(c)c.scrollIntoView({block:'nearest',inline:'nearest'})}
+
+function move(a,b){
+  if(b<0||b>=frames.length||a===b)return;
+  const cur=frames[idx];const [x]=frames.splice(a,1);frames.splice(b,0,x);
+  idx=Math.max(0,frames.indexOf(cur));renderStrip();draw(idx);
+}
+function remove(i){
+  stop();URL.revokeObjectURL(frames[i].url);frames.splice(i,1);
+  idx=Math.min(idx,Math.max(0,frames.length-1));renderStrip();draw(idx);
+}
+
+/* 큰 사진은 1280x720 안에 들어오도록 줄여서 담기 (메모리 절약) */
+const shrink=file=>new Promise((res,rej)=>{
+  const u=URL.createObjectURL(file),im=new Image();
+  im.onerror=()=>{URL.revokeObjectURL(u);rej()};
+  im.onload=()=>{
+    const r=Math.min(1,1280/im.naturalWidth,720/im.naturalHeight);
+    if(r>=1){res({img:im,url:u});return}
+    const c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.naturalWidth*r));c.height=Math.max(1,Math.round(im.naturalHeight*r));
+    c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+    c.toBlob(b=>{
+      URL.revokeObjectURL(u);if(!b){rej();return}
+      const u2=URL.createObjectURL(b),i2=new Image();
+      i2.onload=()=>res({img:i2,url:u2});i2.onerror=()=>{URL.revokeObjectURL(u2);rej()};i2.src=u2;
+    },/^image\/(png|webp|gif)$/.test(file.type)?'image/png':'image/jpeg',0.9);
+  };
+  im.src=u;
+});
+async function addFiles(list){
+  const files=[...list].filter(f=>f.type.startsWith('image/'));
+  if(!files.length){$('#msg').textContent='이미지 파일만 올릴 수 있어요.';return}
+  files.sort((a,b)=>a.name.localeCompare(b.name,'ko',{numeric:true}));
+  const first=frames.length===0;let fail=0;
+  for(let k=0;k<files.length;k++){
+    $('#msg').textContent=`사진을 준비하는 중… (${k+1}/${files.length})`;
+    try{const r=await shrink(files[k]);frames.push({id:++uid,url:r.url,img:r.img});renderStrip()}catch(e){fail++}
+  }
+  if(first)idx=0;
+  $('#msg').textContent=fail?`사진 ${fail}장은 불러오지 못했어요.`:'';
+  renderStrip();draw(idx);mark();
+}
+
+function tick(){
+  if(!playing)return;
+  draw(idx);mark();
+  timer=setTimeout(()=>{
+    idx++;
+    if(idx>=frames.length){if(loop)idx=0;else{idx=frames.length-1;stop();return}}
+    tick();
+  },SPEEDS[speed].ms);
+}
+function play(){if(frames.length<2)return;if(idx>=frames.length-1&&!loop)idx=0;playing=true;$('#play').textContent='❚❚ 멈춤';tick()}
+function stop(){playing=false;clearTimeout(timer);$('#play').textContent='▶ 재생'}
+$('#play').onclick=()=>playing?stop():play();
+$('#loop').checked=loop;
+$('#loop').onchange=e=>{loop=e.target.checked;saveSettings()};
+$('#clear').onclick=()=>{if(!confirm('올린 사진을 모두 지울까요?'))return;stop();frames.forEach(f=>URL.revokeObjectURL(f.url));frames=[];idx=0;renderStrip();drawBlank()};
+
+$('#file').onchange=e=>{addFiles(e.target.files);e.target.value=''};
+const em=$('#empty');
+em.onclick=()=>$('#file').click();
+em.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#file').click()}};
+['dragenter','dragover'].forEach(t=>$('#stage').addEventListener(t,e=>{if(e.dataTransfer&&[...e.dataTransfer.types].includes('Files')){e.preventDefault();em.classList.add('over')}}));
+['dragleave','drop'].forEach(t=>$('#stage').addEventListener(t,()=>em.classList.remove('over')));
+$('#stage').addEventListener('drop',e=>{if(e.dataTransfer.files.length){e.preventDefault();addFiles(e.dataTransfer.files)}});
+
+/* 영상 저장 */
+function pickMime(){
+  const c=['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  return window.MediaRecorder?c.find(m=>MediaRecorder.isTypeSupported(m)):null;
+}
+const mime=pickMime();
+let dl=null;
+try{if(window.claude&&claude.use)claude.use('downloads').then(d=>{dl=d}).catch(()=>{})}catch(e){}
+$('#fmt').textContent=mime?(mime.startsWith('video/mp4')?'MP4 형식으로 저장돼요.':'WEBM 형식으로 저장돼요. (대부분의 컴퓨터·크롬에서 재생 가능)'):'이 브라우저는 영상 저장을 지원하지 않아요. 크롬이나 엣지를 사용해 보세요.';
+if(!mime)$('#save').dataset.off=1;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+$('#save').onclick=async()=>{
+  if(!mime||frames.length<2)return;
+  stop();busy=true;renderStrip();
+  const prog=$('#prog'),bar=$('#pbar');prog.classList.remove('hidden');bar.style.width='0';
+  try{
+    const stream=cv.captureStream(30),chunks=[];
+    const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6e6});
+    rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+    const done=new Promise(r=>rec.onstop=r);
+    rec.start();
+    for(let i=0;i<frames.length;i++){
+      $('#msg').textContent=`영상을 만드는 중… (${i+1}/${frames.length})`;
+      const end=performance.now()+SPEEDS[speed].ms;
+      do{draw(i);await sleep(33)}while(performance.now()<end);
+      bar.style.width=((i+1)/frames.length*100)+'%';
+    }
+    await sleep(100);rec.stop();await done;
+    const ext=mime.startsWith('video/mp4')?'mp4':'webm';
+    const blob=new Blob(chunks,{type:mime.split(';')[0]});
+    if(!dl){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='스톱모션_애니메이션.'+ext;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);$('#msg').textContent='저장이 끝났어요! 다운로드 폴더를 확인해 보세요.'}
+    else{
+      try{await dl.save({filename:'stopmotion.'+ext,data:blob});$('#msg').textContent='저장이 끝났어요! 다운로드 폴더를 확인해 보세요.'}
+      catch(e){$('#msg').textContent=(e&&e.code==='declined')?'저장을 취소했어요. 다시 저장하려면 버튼을 눌러 주세요.':'파일을 저장하지 못했어요. 잠시 후 다시 해 보세요.'}
+    }
+  }catch(err){$('#msg').textContent='영상을 만들지 못했어요. 브라우저를 바꾸거나 사진 수를 줄여 다시 해 보세요.'}
+  busy=false;prog.classList.add('hidden');renderStrip();draw(idx);mark();
+};
+
+/* ===== 사진 만들기 ===== */
+const pc=$('#pc'),px=pc.getContext('2d');
+const BGS=['#ffffff','#bfe3f2','#cfe8c2','#f6e7c1','#f3d4d4','#2b3a4a'];
+const EMO=['🐶','🐱','🐰','🐻','🦊','🐸','🐥','🦄','🧒','👧','🚗','🚀','⭐','🌳','🏠','🎈'];
+let bg={t:'c',v:'#bfe3f2'},items=[],sel=-1,pdrag=null,pn=0;
+try{const k=JSON.parse(localStorage.getItem('stopmotion-photo')||'{}').bg;if(k==='scene')bg={t:'s'};else if(BGS.includes(k))bg={t:'c',v:k}}catch(e){}
+function saveBg(){try{localStorage.setItem('stopmotion-photo',JSON.stringify({bg:bg.t==='s'?'scene':bg.t==='c'?bg.v:''}))}catch(e){}}
+const pmsg=t=>{$('#pmsg').textContent=t};
+function box(it){let w,h;if(it.img){w=it.s*1.6;h=w*it.img.naturalHeight/it.img.naturalWidth}else{w=h=it.s*1.1}return{x:it.x-w/2,y:it.y-h/2,w,h}}
+function pdraw(ui=true){
+  if(bg.t==='img'){const im=bg.img,r=Math.max(1280/im.naturalWidth,720/im.naturalHeight),w=im.naturalWidth*r,h=im.naturalHeight*r;px.drawImage(im,(1280-w)/2,(720-h)/2,w,h)}
+  else if(bg.t==='s'){const g=px.createLinearGradient(0,0,0,720);g.addColorStop(0,'#8fd0f0');g.addColorStop(.7,'#d9f1fb');px.fillStyle=g;px.fillRect(0,0,1280,720);px.fillStyle='#8cc56f';px.fillRect(0,520,1280,200)}
+  else{px.fillStyle=bg.v;px.fillRect(0,0,1280,720)}
+  items.forEach(it=>{
+    px.save();px.translate(it.x,it.y);px.scale(it.flip?-1:1,1);
+    if(it.img){const w=it.s*1.6,h=w*it.img.naturalHeight/it.img.naturalWidth;px.drawImage(it.img,-w/2,-h/2,w,h)}
+    else{px.font=it.s+"px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif";px.textAlign='center';px.textBaseline='middle';px.fillText(it.e,0,0)}
+    px.restore();
+  });
+  if(ui&&sel>-1){const b=box(items[sel]);px.strokeStyle='#1f7a8c';px.lineWidth=4;px.setLineDash([12,8]);px.strokeRect(b.x,b.y,b.w,b.h);px.setLineDash([])}
+}
+function renderBg(){
+  const b=$('#bgs');b.innerHTML='';
+  BGS.forEach(c=>{const x=document.createElement('button');x.className='sw'+(bg.t==='c'&&bg.v===c?' on':'');x.style.background=c;x.setAttribute('aria-label','배경색 '+c);x.onclick=()=>{bg={t:'c',v:c};saveBg();renderBg();pdraw()};b.appendChild(x)});
+  const s=document.createElement('button');s.textContent='🌳 풀밭 풍경';s.className=bg.t==='s'?'on':'';s.onclick=()=>{bg={t:'s'};saveBg();renderBg();pdraw()};b.appendChild(s);
+}
+function syncSel(){const on=sel>-1;['#psize','#pflip','#pdel'].forEach(q=>$(q).disabled=!on);if(on)$('#psize').value=items[sel].s;const im=on&&items[sel].img;$('#pcut').disabled=!im;$('#ptol').disabled=!im;$('#pundo').disabled=!(im&&items[sel].orig)}
+function addItem(o){const n=items.length;items.push(Object.assign({x:640+((n%5)-2)*90,y:420,flip:false},o));sel=items.length-1;syncSel();pdraw()}
+function loadImg(file,cb){shrink(file).then(r=>cb(r.img)).catch(()=>pmsg('사진을 불러오지 못했어요.'))}
+EMO.forEach(e=>{const b=document.createElement('button');b.className='em';b.textContent=e;b.setAttribute('aria-label','인물 추가 '+e);b.onclick=()=>addItem({e,s:160});$('#chs').appendChild(b)});
+$('#chfile').onchange=e=>{[...e.target.files].filter(f=>f.type.startsWith('image/')).forEach(f=>loadImg(f,i=>addItem({img:i,s:200})));e.target.value=''};
+$('#bgfile').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f&&f.type.startsWith('image/'))loadImg(f,i=>{bg={t:'img',img:i};saveBg();renderBg();pdraw()})};
+
+const ppos=e=>{const r=pc.getBoundingClientRect();return{x:(e.clientX-r.left)*1280/r.width,y:(e.clientY-r.top)*720/r.height}};
+pc.onpointerdown=e=>{
+  const p=ppos(e);sel=-1;
+  for(let i=items.length-1;i>=0;i--){const b=box(items[i]);if(p.x>=b.x&&p.x<=b.x+b.w&&p.y>=b.y&&p.y<=b.y+b.h){sel=i;break}}
+  if(sel>-1){const it=items.splice(sel,1)[0];items.push(it);sel=items.length-1;pdrag={dx:it.x-p.x,dy:it.y-p.y};pc.setPointerCapture(e.pointerId);pc.style.cursor='grabbing'}
+  syncSel();pdraw();
+};
+pc.onpointermove=e=>{if(!pdrag)return;const p=ppos(e),it=items[sel];it.x=Math.min(1280,Math.max(0,p.x+pdrag.dx));it.y=Math.min(720,Math.max(0,p.y+pdrag.dy));pdraw()};
+pc.onpointerup=pc.onpointercancel=()=>{pdrag=null;pc.style.cursor='grab'};
+$('#psize').oninput=e=>{if(sel>-1){items[sel].s=+e.target.value;pdraw()}};
+$('#pflip').onclick=()=>{if(sel>-1){items[sel].flip=!items[sel].flip;pdraw()}};
+$('#pdel').onclick=()=>{if(sel>-1){items.splice(sel,1);sel=-1;syncSel();pdraw()}};
+$('#pclr').onclick=()=>{if(items.length&&confirm('등장인물을 모두 지울까요?')){items=[];sel=-1;syncSel();pdraw()}};
+
+/* 가장자리와 이어진 같은 색(배경)을 투명하게 */
+function cutBg(it,tol){return new Promise((res,rej)=>{
+  const src=it.orig||it.img,w=src.naturalWidth,h=src.naturalHeight;
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(src,0,0);
+  const d=x.getImageData(0,0,w,h),a=d.data;
+  if(a[3]<10){res('already');return}
+  const r0=a[0],g0=a[1],b0=a[2],seen=new Uint8Array(w*h),st=[];
+  const add=(xx,yy)=>{const k=yy*w+xx;if(seen[k])return;const i=k*4;
+    if(Math.abs(a[i]-r0)+Math.abs(a[i+1]-g0)+Math.abs(a[i+2]-b0)<=tol*3){seen[k]=1;st.push(k)}};
+  for(let i=0;i<w;i++){add(i,0);add(i,h-1)}
+  for(let j=0;j<h;j++){add(0,j);add(w-1,j)}
+  while(st.length){const k=st.pop(),xx=k%w,yy=(k-xx)/w;a[k*4+3]=0;
+    if(xx>0)add(xx-1,yy);if(xx<w-1)add(xx+1,yy);if(yy>0)add(xx,yy-1);if(yy<h-1)add(xx,yy+1)}
+  x.putImageData(d,0,0);
+  c.toBlob(b=>{if(!b){rej();return}const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej();i.src=URL.createObjectURL(b)},'image/png');
+})}
+$('#pcut').onclick=async()=>{
+  if(sel<0||!items[sel].img)return;const it=items[sel];
+  try{const r=await cutBg(it,+$('#ptol').value);
+    if(r==='already'){pmsg('이 사진은 이미 투명한 부분이 있어요.');return}
+    it.orig=it.orig||it.img;it.img=r;syncSel();pdraw();
+    pmsg('배경을 지웠어요. 덜 지워졌으면 민감도를 올리고, 너무 지워졌으면 내려서 다시 눌러 보세요.');
+  }catch(e){pmsg('배경을 지우지 못했어요.')}
+};
+$('#pundo').onclick=()=>{if(sel>-1&&items[sel].orig){items[sel].img=items[sel].orig;items[sel].orig=null;syncSel();pdraw();pmsg('원래 사진으로 되돌렸어요.')}};
+
+function photoBlob(){pdraw(false);return new Promise(r=>pc.toBlob(b=>{pdraw();r(b)},'image/png'))}
+$('#padd').onclick=async()=>{
+  const b=await photoBlob();if(!b){pmsg('사진을 만들지 못했어요.');return}
+  const url=URL.createObjectURL(b),img=new Image();
+  img.onload=()=>{frames.push({id:++uid,url,img});renderStrip();draw(idx);pmsg(`스톱모션 페이지에 ${frames.length}번째 사진으로 추가했어요.`)};
+  img.src=url;
+};
+$('#psave').onclick=async()=>{
+  const b=await photoBlob();if(!b){pmsg('사진을 만들지 못했어요.');return}
+  const name='photo'+(++pn)+'.png';
+  if(dl){try{await dl.save({filename:name,data:b});pmsg('사진을 저장했어요!')}catch(e){pmsg(e&&e.code==='declined'?'저장을 취소했어요.':'사진을 저장하지 못했어요.')}}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='사진'+pn+'.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);pmsg('사진을 저장했어요! 다운로드 폴더를 확인해 보세요.')}
+};
+
+function go(p){
+  $('#pgA').classList.toggle('hidden',p!=='A');$('#pgB').classList.toggle('hidden',p!=='B');
+  $('#nA').classList.toggle('on',p==='A');$('#nB').classList.toggle('on',p==='B');
+  if(p==='B'){stop();pdraw()}else{draw(idx)}
+  window.scrollTo(0,0);
+}
+$('#nA').onclick=()=>go('A');$('#nB').onclick=()=>go('B');$('#pgo').onclick=()=>go('A');
+renderBg();pdraw();
+
+renderSpeed();renderStrip();drawBlank();
+</script>
+</body>
+</html>
